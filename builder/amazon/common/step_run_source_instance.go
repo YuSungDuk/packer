@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -175,10 +176,7 @@ func (s *StepRunSourceInstance) Run(state multistep.StateBag) multistep.StepActi
 	ui.Message(fmt.Sprintf("Instance ID: %s", instanceId))
 	ui.Say(fmt.Sprintf("Waiting for instance (%v) to become ready...", instanceId))
 
-	describeInstanceStatus := &ec2.DescribeInstanceStatusInput{
-		InstanceIds: []*string{aws.String(instanceId)},
-	}
-	if err := ec2conn.WaitUntilInstanceStatusOk(describeInstanceStatus); err != nil {
+	if err := waitUntilInstanceReady(ec2conn, instanceId, s.InstanceType); err != nil {
 		err := fmt.Errorf("Error waiting for instance (%s) to become ready: %s", instanceId, err)
 		state.Put("error", err)
 		ui.Error(err.Error())
@@ -238,4 +236,23 @@ func (s *StepRunSourceInstance) Cleanup(state multistep.StateBag) {
 			ui.Error(err.Error())
 		}
 	}
+}
+
+func waitUntilInstanceReady(ec2conn *ec2.EC2, instanceID, instanceType string) error {
+	statusOKMap := make(map[string]struct{})
+	statusOKMap["c5"] = struct{}{}
+
+	if _, ok := statusOKMap[strings.Split(instanceType, ".")[0]]; ok {
+		log.Println("[INFO] using WaitUntilInstanceStatusOk for instance to become ready. " +
+			"Please make sure you have the ec2:DescribeInstanceStatus permission.")
+		describeInstanceStatus := &ec2.DescribeInstanceStatusInput{
+			InstanceIds: []*string{aws.String(instanceID)},
+		}
+		return ec2conn.WaitUntilInstanceStatusOk(describeInstanceStatus)
+	}
+	log.Println("[INFO] using WaitUntilInstanceRunning for instance to become ready.")
+	describeInstance := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{aws.String(instanceID)},
+	}
+	return ec2conn.WaitUntilInstanceRunning(describeInstance)
 }
