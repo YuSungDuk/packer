@@ -144,16 +144,18 @@ func FileExistsLocally(original string) (bool, error) {
 		filePath := fileURL.Path
 		if runtime.GOOS == "windows" && len(filePath) > 0 && filePath[0] == '/' {
 			filePath = filePath[1:]
-			fmt.Printf("debugging line -- shouldnt get here on windows")
 		}
-		fmt.Printf("%#v", runtime.GOOS)
+		fmt.Printf("Swampy: %#v\n", runtime.GOOS)
+		fmt.Printf("Swampy: %s\n", filePath)
 		_, err := os.Stat(filePath)
 		if err != nil {
-			err = fmt.Errorf("could not stat file: %s", err)
+			err = fmt.Errorf("could not stat file: %s\n", err)
 			return fileExists, err
 		} else {
+			fmt.Printf("Swampy: in the else statement")
 			fileExists = true
 		}
 	}
+	fmt.Printf("Swampy: made it to bottom of file")
 	return fileExists, nil
 }
